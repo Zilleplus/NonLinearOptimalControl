@@ -3,7 +3,7 @@
 ## What is this?
 - A simple implementation of non-linear optimal control.
 - Self contained -> uses only stl, no external libs.
-- Has it's own automatic backward differentiation.
+- It has it's own automatic backward differentiation implemenation.
 - It does not contain a non-linear solver, those you have to find somewhere else.
 
 ## How to use?
@@ -12,7 +12,26 @@
 
 Using the tests/optimalControlTests/cart.cpp as example:
 
-### The behavior of a point mass can be described by the continuous differential equation:
+### Continous behavior of the system
+
+The behavior of a 2D pointmass with 
+- mass m
+- x-position: $x_0$
+- y-position: $x_1$
+- x-velocity: input $u_0$
+- y-velocity: input $u_1$
+
+$$
+f = 
+\begin{cases}
+\dot{x_0} & = x_2 \\
+\dot{x_1} & = x_3 \\
+\dot{x_2} & = u_0/m \\
+\dot{x_3} & = u_1/m \\
+\end{cases}
+$$
+
+Translated in code:
 ```
 // The system behavior :
 // dot_x0 = x_2
@@ -37,14 +56,17 @@ class CartBehavior : public optimalControl::ContiniousSystemBehavior
 };
 ```
 
-### Integrate the differential equation to obtain a discrete system, that is a subclass of optimalControl::DiscreteSystemBehavior.
+### Convert to Discrete system
+Either create a class that inherits from optimalControl::DiscreteSystemBehavior and implement it manually.
+Or integrate the continous system using an integrator:
 ```
 double step_size = 1e-1;
 auto discrete_system = optimalControl::IntegrateWithExplicitEuler(cont_system, step_size);
 ```
 
-### Use the single shot definition to define the optimal control problem.
-- Set the state constraint as a weighted L2Norm (4 states in this case, so 4 weights are required)
+### Create optimal control problem
+Use the single shot definition to define the optimal control problem.
+Set the state constraint as a weighted L2Norm (4 states in this case, so 4 weights are required)
 ```
 optimalControl::SingleShot::InitParams params;
 params.num_of_input = 2; // 2D motoro speed
@@ -66,9 +88,12 @@ std::vector<double> init_state = { 0,0, 0,0 };
 problem.SetInitState(init_state);
 
 // End at (10, 10) at standing still.
-std::vector<double> ref_state = { 10, 10 , 5, 5 };
+std::vector<double> ref_state = { 10, 10 , 0, 0 };
 problem.SetRefState(ref_state);
+```
 
+Create the vector to save the results.
+```
 std::vector<double> current_input_horizon(s);
 for (int i = 0; i < std::size(current_input_horizon); ++i)
 {
@@ -76,10 +101,13 @@ for (int i = 0; i < std::size(current_input_horizon); ++i)
 }
 ```
 
-
 ### Solve the non-linear problem
-You can find the gradient/cost function as proble.CostGradient(input, output\_gradient). Minimize the costs of this function to solve the optimal control problem.
+You can find the gradient/cost function by calling problem.CostGradient(input, output\_gradient).
+Minimize the costs of this function to solve the optimal control problem.
 ```
 std::vector<double> output_gradient(s);
 const double current_cost = problem.CostGradient(current_input_horizon, output_gradient);
 ```
+
+### Try it yourself
+test/cart.cpp contains an implementation solving the 2D point mass problem using a gradient descent.
